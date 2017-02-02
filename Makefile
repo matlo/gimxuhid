@@ -1,6 +1,6 @@
 OBJECTS += $(patsubst %.c,%.o,$(wildcard src/linux/*.c))
 
-CPPFLAGS += -Iinclude -I.
+CPPFLAGS += -Iinclude -I. -I../
 CFLAGS += -fPIC
 
 include Makedefs
