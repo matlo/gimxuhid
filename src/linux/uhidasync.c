@@ -5,6 +5,7 @@
 
 #include <guhid.h>
 #include <gimxcommon/include/gerror.h>
+#include <gimxcommon/include/glist.h>
 
 #ifndef __ARM_ARCH_6__
 #include <linux/uhid.h>
@@ -19,60 +20,17 @@
 #include <sys/inotify.h>
 #include <linux/input.h>
 #include <limits.h>
-
-#define UHID_MAX_DEVICES 256
+#include <stdlib.h>
 
 #define UHID_PATH "/dev/uhid"
 
-static struct {
+struct guhid_device {
     int fd;
     int opened;
-} uhidasync_devices[UHID_MAX_DEVICES] = { };
+    GLIST_LINK(struct guhid_device)
+};
 
-void uhidasync_init(void) __attribute__((constructor));
-void uhidasync_init(void) {
-    int i;
-    for (i = 0; i < UHID_MAX_DEVICES; ++i) {
-        uhidasync_devices[i].fd = -1;
-    }
-}
-
-void uhidasync_clean(void) __attribute__((destructor));
-void uhidasync_clean(void) {
-    int i;
-    for (i = 0; i < UHID_MAX_DEVICES; ++i) {
-        if (uhidasync_devices[i].fd >= 0) {
-            guhid_close(i);
-        }
-    }
-}
-
-static inline int uhidasync_check_device(int device, const char * file, unsigned int line, const char * func) {
-    if (device < 0 || device >= UHID_MAX_DEVICES) {
-        fprintf(stderr, "%s:%d %s: invalid device\n", file, line, func);
-        return -1;
-    }
-    if (uhidasync_devices[device].fd < 0) {
-        fprintf(stderr, "%s:%d %s: no such device\n", file, line, func);
-        return -1;
-    }
-    return 0;
-}
-#define UHIDASYNC_CHECK_DEVICE(device,retValue) \
-  if(uhidasync_check_device(device, __FILE__, __LINE__, __func__) < 0) { \
-    return retValue; \
-  }
-
-static int add_device(int fd) {
-    int i;
-    for (i = 0; i < UHID_MAX_DEVICES; ++i) {
-        if (uhidasync_devices[i].fd == -1) {
-            uhidasync_devices[i].fd = fd;
-            return i;
-        }
-    }
-    return -1;
-}
+GLIST_INST(struct guhid_device, uhid_devices, guhid_close)
 
 static int uhid_write(int fd, const struct uhid_event *ev) {
 
@@ -235,27 +193,32 @@ static int wait_watch(int ifd, const char * uniq) {
     return ret;
 }
 
-int guhid_create(const s_hid_info * hid_info, int hid) {
+struct guhid_device * guhid_create(const s_hid_info * hid_info, struct ghid_device * hid) {
 
     if (hid_info == NULL) {
 
         PRINT_ERROR_OTHER("invalid argument")
-        return -1;
+        return NULL;
     }
 
     int fd = open(UHID_PATH, O_RDWR | O_NONBLOCK);
 
     if (fd < 0) {
         PRINT_ERROR_ERRNO("open")
-        return -1;
+        return NULL;
     }
 
-    int device = add_device(fd);
+    struct guhid_device * device = calloc(1, sizeof(*device));
 
-    if (device < 0) {
+    if (device == NULL) {
+        PRINT_ERROR_ALLOC_FAILED("calloc")
         close(fd);
-        return -1;
+        return NULL;
     }
+
+    device->fd = fd;
+
+    GLIST_ADD(uhid_devices, device)
 
     // Change Joystick and Gamepad usages to Multiaxis Controller usage.
     // This prevents the kernel from applying deadzones.
@@ -290,24 +253,24 @@ int guhid_create(const s_hid_info * hid_info, int hid) {
         snprintf(dest, sizeof(ev.u.create.name), "HID %04x:%04x", hid_info->vendor_id, hid_info->product_id);
     }
 
-    snprintf((char *) ev.u.create.uniq, sizeof(ev.u.create.uniq), "GIMX %d %d", getpid(), hid);
+    snprintf((char *) ev.u.create.uniq, sizeof(ev.u.create.uniq), "GIMX %d %p", getpid(), hid);
 
     int ifd = setup_watch();
     if (ifd < 0) {
         guhid_close(device);
-        return -1;
+        return NULL;
     }
 
     if (uhid_write(fd, &ev) < 0) {
         close(ifd);
         guhid_close(device);
-        return -1;
+        return NULL;
     }
 
     if (wait_watch(ifd, (char *) ev.u.create.uniq) < 0) {
         close(ifd);
         guhid_close(device);
-        return -1;
+        return NULL;
     }
 
     close(ifd);
@@ -315,13 +278,13 @@ int guhid_create(const s_hid_info * hid_info, int hid) {
     return device;
 }
 
-static int uhid_read(int device) {
+static int uhid_read(struct guhid_device * device) {
 
     struct uhid_event ev;
     ssize_t ret;
 
     memset(&ev, 0, sizeof(ev));
-    ret = read(uhidasync_devices[device].fd, &ev, sizeof(ev));
+    ret = read(device->fd, &ev, sizeof(ev));
     if (ret == -1) {
         if (errno == EAGAIN) {
             return 0;
@@ -336,10 +299,10 @@ static int uhid_read(int device) {
     case UHID_STOP:
         break;
     case UHID_OPEN:
-        uhidasync_devices[device].opened = 1;
+        device->opened = 1;
         break;
     case UHID_CLOSE:
-        uhidasync_devices[device].opened = 0;
+        device->opened = 0;
         break;
     case UHID_OUTPUT:
         break;
@@ -352,31 +315,29 @@ static int uhid_read(int device) {
     return ret;
 }
 
-int guhid_is_opened(int device) {
-
-    UHIDASYNC_CHECK_DEVICE(device, 0)
+int guhid_is_opened(struct guhid_device * device) {
 
     while(uhid_read(device) > 0) {}
 
-    return uhidasync_devices[device].opened;
+    return device->opened;
 }
 
-int guhid_close(int device) {
-
-    UHIDASYNC_CHECK_DEVICE(device, -1)
+int guhid_close(struct guhid_device * device) {
 
     struct uhid_event ev = { .type = UHID_DESTROY };
-    uhid_write(uhidasync_devices[device].fd, &ev);
-    close(uhidasync_devices[device].fd);
-    uhidasync_devices[device].fd = -1;
-    uhidasync_devices[device].opened = 0;
+    uhid_write(device->fd, &ev);
+    close(device->fd);
+    device->fd = -1;
+    device->opened = 0;
+
+    GLIST_REMOVE(uhid_devices, device)
+
+    free(device);
 
     return 1;
 }
 
-int guhid_write(int device, const void * buf, unsigned int count) {
-
-    UHIDASYNC_CHECK_DEVICE(device, -1)
+int guhid_write(struct guhid_device * device, const void * buf, unsigned int count) {
 
     if (count > UHID_DATA_MAX) {
 
@@ -387,6 +348,6 @@ int guhid_write(int device, const void * buf, unsigned int count) {
     struct uhid_event ev = { .type = UHID_INPUT, .u.input.size = count };
     memcpy(ev.u.input.data, buf, count);
 
-    return uhid_write(uhidasync_devices[device].fd, &ev);
+    return uhid_write(device->fd, &ev);
 }
 

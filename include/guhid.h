@@ -8,9 +8,11 @@
 
 #include <gimxhid/include/ghid.h>
 
-int guhid_create(const s_hid_info * hid_info, int hid);
-int guhid_close(int device);
-int guhid_write(int device, const void * buf, unsigned int count);
-int guhid_is_opened(int device);
+struct guhid_device;
+
+struct guhid_device * guhid_create(const s_hid_info * hid_info, struct ghid_device * hid);
+int guhid_close(struct guhid_device * device);
+int guhid_write(struct guhid_device * device, const void * buf, unsigned int count);
+int guhid_is_opened(struct guhid_device * device);
 
 #endif /* GUHID_H_ */

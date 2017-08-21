@@ -22,8 +22,8 @@
 
 #define PERIOD 10000//microseconds
 
-static int uhid = -1;
-static int hid = -1;
+static struct guhid_device * uhid = NULL;
+static struct ghid_device * hid = NULL;
 
 static void dump(const unsigned char * packet, unsigned char length) {
   int i;
@@ -36,7 +36,7 @@ static void dump(const unsigned char * packet, unsigned char length) {
   printf("\n");
 }
 
-int hid_read(int user __attribute__((unused)), const void * buf, int status) {
+int hid_read(void * user __attribute__((unused)), const void * buf, int status) {
 
   if (status < 0) {
     set_done();
@@ -62,7 +62,7 @@ int hid_read(int user __attribute__((unused)), const void * buf, int status) {
   return 0;
 }
 
-int hid_close(int user __attribute__((unused))) {
+int hid_close(void * user __attribute__((unused))) {
   set_done();
   return 0;
 }
@@ -84,7 +84,7 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
 
   hid = ghid_open_path(path);
 
-  if (hid >= 0) {
+  if (hid != NULL) {
 
     const s_hid_info * hidInfo = ghid_get_hid_info(hid);
 
@@ -95,7 +95,7 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
     //Create a virtual hid device
     uhid = guhid_create(hidInfo, hid);
 
-    if (uhid >= 0) {
+    if (uhid != NULL) {
 
       GPOLL_INTERFACE poll_interface = {
             .fp_register = REGISTER_FUNCTION,
@@ -112,15 +112,15 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
                 .fp_register = REGISTER_FUNCTION,
                 .fp_remove = REMOVE_FUNCTION,
         };
-        if (ghid_register(hid, 42, &ghid_callbacks) != -1) {
+        if (ghid_register(hid, NULL, &ghid_callbacks) != -1) {
           GTIMER_CALLBACKS timer_callbacks = {
                   .fp_read = timer_read,
                   .fp_close = timer_close,
                   .fp_register = REGISTER_FUNCTION,
                   .fp_remove = REMOVE_FUNCTION,
           };
-          int timer = gtimer_start(42, PERIOD, &timer_callbacks);
-          if (timer < 0) {
+          struct gtimer * timer = gtimer_start(NULL, PERIOD, &timer_callbacks);
+          if (timer == NULL) {
             set_done();
           }
 
@@ -137,7 +137,7 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
 
           }
 
-          if (timer >= 0) {
+          if (timer != NULL) {
             gtimer_close(timer);
           }
 
