@@ -6,6 +6,7 @@
 #include <guhid.h>
 #include <gimxcommon/include/gerror.h>
 #include <gimxcommon/include/glist.h>
+#include <gimxlog/include/glog.h>
 
 #ifndef __ARM_ARCH_6__
 #include <linux/uhid.h>
@@ -24,6 +25,8 @@
 
 #define UHID_PATH "/dev/uhid"
 
+GLOG_INST(GLOG_NAME)
+
 struct guhid_device {
     int fd;
     int opened;
@@ -39,7 +42,9 @@ static int uhid_write(int fd, const struct uhid_event *ev) {
         PRINT_ERROR_ERRNO("write")
         return -1;
     } else if (ret != sizeof(*ev)) {
-        fprintf(stderr, "Wrong size written to uhid: %zu != %zu\n", ret, sizeof(ev));
+        if (GLOG_LEVEL(GLOG_NAME,ERROR)) {
+            fprintf(stderr, "Wrong size written to uhid: %zu != %zu\n", ret, sizeof(ev));
+        }
         return -1;
     } else {
         return 0;
