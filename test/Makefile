@@ -3,8 +3,8 @@ CXXFLAGS += -O3
 
 CPPFLAGS = -I../..
 
-LDFLAGS = -L../../gimxuhid -L../../gimxinput -L../../gimxhid -L../../gimxpoll -L../../gimxtimer
-LDLIBS = -lgimxuhid -lgimxinput -lgimxhid -lgimxpoll -lgimxtimer
+LDFLAGS = -L../../gimxuhid -L../../gimxinput -L../../gimxhid -L../../gimxpoll -L../../gimxlog -L../../gimxtime -L../../gimxtimer
+LDLIBS = -lgimxuhid -lgimxinput -lgimxhid -lgimxpoll -lgimxlog -lgimxtime -lgimxtimer
 
 BINS=guhid_test
 ifneq ($(OS),Windows_NT)
