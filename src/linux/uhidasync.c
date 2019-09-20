@@ -39,7 +39,7 @@ static int uhid_write(int fd, const struct uhid_event *ev) {
 
     ssize_t ret = write(fd, ev, sizeof(*ev));
     if (ret < 0) {
-        PRINT_ERROR_ERRNO("write")
+        PRINT_ERROR_ERRNO("write");
         return -1;
     } else if (ret != sizeof(*ev)) {
         if (GLOG_LEVEL(GLOG_NAME,ERROR)) {
@@ -90,7 +90,7 @@ static void fix_rdesc_usage(unsigned char * rdesc, unsigned short size) {
       dataSize = item->bDataSize;
       headerSize = sizeof(item->header) + sizeof(item->bDataSize) + sizeof(item->bLongItemTag);
       if(pos + headerSize + dataSize >= rdesc + size) {
-        PRINT_ERROR_OTHER("invalid report descriptor")
+        PRINT_ERROR_OTHER("invalid report descriptor");
         break;
       }
     } else {
@@ -99,7 +99,7 @@ static void fix_rdesc_usage(unsigned char * rdesc, unsigned short size) {
       dataSize = sizes[item->header.bSize];
       headerSize = sizeof(item->header);
       if(pos + headerSize + dataSize >= rdesc + size) {
-        PRINT_ERROR_OTHER("invalid report descriptor")
+        PRINT_ERROR_OTHER("invalid report descriptor");
         break;
       }
       if (dataSize == 1 && item->header.bType == BTYPE_LOCAL) {
@@ -124,12 +124,12 @@ static int setup_watch() {
 
     int ifd = inotify_init();
     if (ifd < 0) {
-        PRINT_ERROR_ERRNO("inotify_init")
+        PRINT_ERROR_ERRNO("inotify_init");
         return -1;
     }
 
     if (inotify_add_watch(ifd, "/dev/input", IN_CREATE) < 0) {
-        PRINT_ERROR_ERRNO("inotify_add_watch")
+        PRINT_ERROR_ERRNO("inotify_add_watch");
         close(ifd);
         return -1;
     }
@@ -158,7 +158,7 @@ static int wait_watch(int ifd, const char * uniq) {
             if (FD_ISSET(ifd, &readfds)) {
                 int res = read(ifd, buf, sizeof(buf));
                 if (res < 0) {
-                  PRINT_ERROR_ERRNO("read")
+                  PRINT_ERROR_ERRNO("read");
                   ret = -1;
                 } else {
                     int i;
@@ -183,13 +183,13 @@ static int wait_watch(int ifd, const char * uniq) {
                 }
             }
         } else if (status == 0) {
-            PRINT_ERROR_OTHER("select timed out")
+            PRINT_ERROR_OTHER("select timed out");
             ret = -1;
         } else {
             if (errno == EINTR) {
                 continue;
             } else {
-                PRINT_ERROR_ERRNO("select")
+                PRINT_ERROR_ERRNO("select");
                 ret = -1;
             }
         }
@@ -202,21 +202,21 @@ struct guhid_device * guhid_create(const s_hid_info * hid_info, struct ghid_devi
 
     if (hid_info == NULL) {
 
-        PRINT_ERROR_OTHER("invalid argument")
+        PRINT_ERROR_OTHER("invalid argument");
         return NULL;
     }
 
     int fd = open(UHID_PATH, O_RDWR | O_NONBLOCK);
 
     if (fd < 0) {
-        PRINT_ERROR_ERRNO("open")
+        PRINT_ERROR_ERRNO("open");
         return NULL;
     }
 
     struct guhid_device * device = calloc(1, sizeof(*device));
 
     if (device == NULL) {
-        PRINT_ERROR_ALLOC_FAILED("calloc")
+        PRINT_ERROR_ALLOC_FAILED("calloc");
         close(fd);
         return NULL;
     }
@@ -294,7 +294,7 @@ static int uhid_read(struct guhid_device * device) {
         if (errno == EAGAIN) {
             return 0;
         }
-        PRINT_ERROR_ERRNO("read")
+        PRINT_ERROR_ERRNO("read");
         return -1;
     }
 
@@ -346,7 +346,7 @@ int guhid_write(struct guhid_device * device, const void * buf, unsigned int cou
 
     if (count > UHID_DATA_MAX) {
 
-        PRINT_ERROR_OTHER("count is higher than UHID_DATA_MAX")
+        PRINT_ERROR_OTHER("count is higher than UHID_DATA_MAX");
         return -1;
     }
 
