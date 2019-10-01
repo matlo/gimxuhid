@@ -30,10 +30,11 @@ GLOG_INST(GLOG_NAME)
 struct guhid_device {
     int fd;
     int opened;
-    GLIST_LINK(struct guhid_device)
+    GLIST_LINK(struct guhid_device);
 };
 
-GLIST_INST(struct guhid_device, uhid_devices, guhid_close)
+GLIST_INST(struct guhid_device, uhid_devices);
+GLIST_DESTRUCTOR(uhid_devices, guhid_close)
 
 static int uhid_write(int fd, const struct uhid_event *ev) {
 
