@@ -224,7 +224,7 @@ struct guhid_device * guhid_create(const s_hid_info * hid_info, struct ghid_devi
 
     device->fd = fd;
 
-    GLIST_ADD(uhid_devices, device)
+    GLIST_ADD(uhid_devices, device);
 
     // Change Joystick and Gamepad usages to Multiaxis Controller usage.
     // This prevents the kernel from applying deadzones.
@@ -336,7 +336,7 @@ int guhid_close(struct guhid_device * device) {
     device->fd = -1;
     device->opened = 0;
 
-    GLIST_REMOVE(uhid_devices, device)
+    GLIST_REMOVE(uhid_devices, device);
 
     free(device);
 
