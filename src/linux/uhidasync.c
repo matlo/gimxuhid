@@ -34,7 +34,6 @@ struct guhid_device {
 };
 
 static GLIST_INST(struct guhid_device, uhid_devices);
-GLIST_DESTRUCTOR(uhid_devices, guhid_close)
 
 static int uhid_write(int fd, const struct uhid_event *ev) {
 

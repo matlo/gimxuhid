@@ -70,10 +70,6 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
 
   setup_handlers();
 
-  if (ghid_init() < 0) {
-    return -1;
-  }
-
   char * path = hid_select();
 
   if (path == NULL) {
@@ -150,8 +146,6 @@ int main(int argc __attribute__((unused)), char* argv[] __attribute__((unused)))
 
     guhid_close(uhid);
   }
-
-  ghid_exit();
 
   free(path);
 
